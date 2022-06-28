@@ -54,6 +54,27 @@ func GetUsers(c *fiber.Ctx) error {
 		})
 }
 
+func GetUsersCount(c *fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	count, err := userCollection.CountDocuments(ctx, bson.M{})
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "Error getting user count",
+			})
+	}
+
+	return c.Status(http.StatusOK).JSON(
+		fiber.Map{
+			"status":  "success",
+			"message": "User count retrieved successfully",
+			"data":    count,
+		})
+}
+
 func CreateUser(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	var user models.User
