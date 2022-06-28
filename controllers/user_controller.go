@@ -86,6 +86,7 @@ func CreateUser(c *fiber.Ctx) error {
 			fiber.Map{
 				"status":  "error",
 				"message": "Invalid request body",
+				"error":   err,
 			})
 	}
 
@@ -95,6 +96,16 @@ func CreateUser(c *fiber.Ctx) error {
 		LastName:  user.LastName,
 		Bio:       user.Bio,
 		Age:       user.Age,
+		Gender:    user.Gender,
+	}
+
+	if err := newUser.ValidateUser(); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "Invalid User",
+				"error":   err,
+			})
 	}
 
 	result, err := userCollection.InsertOne(ctx, newUser)
