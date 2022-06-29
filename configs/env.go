@@ -32,3 +32,16 @@ func EnvMongoDatabase() string {
 
 	return os.Getenv("MONGO_DATABASE")
 }
+
+func EnvRedisAddress() string {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	if os.Getenv("REDIS_HOST") != "" && os.Getenv("REDIS_PORT") != "" {
+		return os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")
+	}
+
+	return ""
+}

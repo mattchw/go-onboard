@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -16,35 +18,62 @@ import (
 
 var userCollection *mongo.Collection = configs.GetCollection(configs.DB, "users")
 
+func CacheFetch(ctx context.Context, key string, ttl time.Duration, result interface{}, code func() interface{}) {
+	str, _ := configs.RDB.Get(ctx, key).Result()
+	if str == "" {
+		fmt.Println("---> cache miss")
+		value := code()
+		jsonStr, _ := json.Marshal(value)
+		str = string(jsonStr)
+		configs.RDB.Set(ctx, key, str, ttl).Result()
+	} else {
+		fmt.Println("---> cache exists")
+	}
+
+	json.Unmarshal([]byte(str), &result)
+}
+
 func GetUsers(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	var users []models.User
 	defer cancel()
 
-	// find all users
-	results, err := userCollection.Find(ctx, bson.M{})
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(
-			fiber.Map{
-				"status":  "error",
-				"message": "Error getting user",
-			})
-	}
-
-	// decode all users
-	defer results.Close(ctx)
-	for results.Next(ctx) {
-		var user models.User
-		if err = results.Decode(&user); err != nil {
+	CacheFetch(ctx, "users", 10*time.Second, &users, func() interface{} {
+		// find all users
+		results, err := userCollection.Find(ctx, bson.M{})
+		if err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(
 				fiber.Map{
 					"status":  "error",
-					"message": "Error decoding user",
+					"message": "Error getting user",
 				})
 		}
 
-		users = append(users, user)
-	}
+		// decode all users
+		defer results.Close(ctx)
+		for results.Next(ctx) {
+			var user models.User
+			if err = results.Decode(&user); err != nil {
+				return c.Status(http.StatusInternalServerError).JSON(
+					fiber.Map{
+						"status":  "error",
+						"message": "Error decoding user",
+					})
+			}
+
+			users = append(users, user)
+		}
+
+		users_json, _ := json.Marshal(users)
+
+		// set redis cache for 30 seconds
+		err = configs.RDB.Set(ctx, "users", users_json, 0).Err()
+		if err != nil {
+			panic(err)
+		}
+
+		return users
+	})
 
 	return c.Status(http.StatusOK).JSON(
 		fiber.Map{
