@@ -9,6 +9,7 @@ import (
 
 	"github.com/mattchw/go-onboard/configs"
 	"github.com/mattchw/go-onboard/models"
+	"github.com/mattchw/go-onboard/services"
 
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
@@ -105,9 +106,7 @@ func GetUsersCount(c *fiber.Ctx) error {
 }
 
 func CreateUser(c *fiber.Ctx) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	var user models.User
-	defer cancel()
 
 	// validate the request body
 	if err := c.BodyParser(&user); err != nil {
@@ -119,32 +118,7 @@ func CreateUser(c *fiber.Ctx) error {
 			})
 	}
 
-	newUser := models.User{
-		Id:        primitive.NewObjectID(),
-		FirstName: user.FirstName,
-		LastName:  user.LastName,
-		Bio:       user.Bio,
-		Age:       user.Age,
-		Gender:    user.Gender,
-	}
-
-	if err := newUser.ValidateUser(); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(
-			fiber.Map{
-				"status":  "error",
-				"message": "Invalid User",
-				"error":   err,
-			})
-	}
-
-	result, err := userCollection.InsertOne(ctx, newUser)
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(
-			fiber.Map{
-				"status":  "error",
-				"message": "Error creating user",
-			})
-	}
+	result := services.CreateUser(user)
 
 	return c.Status(http.StatusCreated).JSON(
 		fiber.Map{
