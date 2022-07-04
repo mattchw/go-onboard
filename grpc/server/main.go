@@ -223,17 +223,12 @@ func main() {
 	}()
 	fmt.Println("Server successfully started on port :50051")
 
-	// Right way to stop the server using a SHUTDOWN HOOK
-	// Create a channel to receive OS signals
 	c := make(chan os.Signal)
 
-	// Relay os.Interrupt to our channel (os.Interrupt = CTRL+C)
-	// Ignore other incoming signals
 	signal.Notify(c, os.Interrupt)
 
 	<-c
 
-	// After receiving CTRL+C Properly stop the server
 	fmt.Println("\nStopping the server...")
 	s.Stop()
 	lis.Close()

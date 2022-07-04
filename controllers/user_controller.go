@@ -106,6 +106,8 @@ func GetUsersCount(c *fiber.Ctx) error {
 }
 
 func CreateUser(c *fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	var user models.User
 
 	// validate the request body
@@ -118,7 +120,11 @@ func CreateUser(c *fiber.Ctx) error {
 			})
 	}
 
-	result := services.CreateUser(user)
+	// create the user by using user service
+	userService := services.NewUserServiceImpl(
+		configs.GetCollection(configs.DB, "users"),
+	)
+	result := userService.Create(ctx, user)
 
 	return c.Status(http.StatusCreated).JSON(
 		fiber.Map{
